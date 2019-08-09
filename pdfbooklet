@@ -1,0 +1,80 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use utf8;
+use Getopt::Long qw(:config posix_default no_ignore_case gnu_compat);
+use File::Basename;
+use File::Temp;
+
+# constants
+my $cpdf = "/usr/local/bin/cpdf";
+
+# parse command line
+my $cmd = basename($0);
+my ($output, $twoup, $help);
+GetOptions('output|o=s' => \$output,
+	   'twoup|t' => \$twoup,
+	   'help|h' => \$help) || die "error in command line argment";
+$help = 1 unless @ARGV == 1;
+if ($help) {
+    print STDERR "Usage: $cmd [--output=output.pdf] [--twoup] input.pdf\n";
+    print STDERR "Arrange the page order of input.pdf as a booklet, and\n";
+    print STDERR "generate input-booklet.pdf file.\n";
+    print STDERR "--output change the outfile name.\n";
+    print STDERR "--twoup  put 2 pages onto one (2up).\n";
+    exit 1;
+}
+
+# count the number of pages
+sub count_pages {
+    my $pdffile = shift;
+
+    open(my $in, "-|", "$cpdf \"$pdffile\" -pages") || die "$pdffile: $!";
+    chop(my $count = <$in>);
+
+    return $count;
+}
+
+# create_booklet($pdffile, $outfile)
+# create a booklet pdf
+sub create_booklet {
+    my $pdffile = shift;
+    my $newfile = shift;
+
+    my $pages = count_pages($pdffile);
+    my $tmpfile = File::Temp->new(SUFFIX=>".pdf")->filename;
+
+    if ($pages % 4) {
+	my $option = "-pad-after end" . (",end" x (3 - $pages % 4));
+	system("$cpdf \"$pdffile\" $option -o \"$tmpfile\"");
+
+	$pages = $pages + (4 - $pages % 4);
+    }
+    else {
+	$tmpfile = $pdffile;
+    }
+
+    my @list;
+    my $n = $pages / 4;
+    for (my $k = 0; $k < $n; $k++) {
+	my $p1 = 4 * $n - 2 * $k;
+	my $p2 = 2 * $k + 1;
+	my $p3 = 2 * $k + 2;
+	my $p4 = 4 * $n - 2 * $k - 1;
+	push @list, ($p1, $p2, $p3, $p4);
+    }
+    my $opt = $twoup ? " -twoup" : "";
+    
+    system("$cpdf \"$tmpfile\" " . join(",", @list) . 
+	   $opt . " -o \"$newfile\"");
+    
+    1;
+}
+
+my $pdffile = shift(@ARGV);
+$output = dirname($pdffile) . "/" . basename($pdffile, ".pdf") . "-booklet.pdf" unless $output;
+create_booklet($pdffile, $output);
+
+1;
+__END__
