@@ -19,7 +19,7 @@ Then, put *pdfbooklet* file in your command search path ($PATH), for example /us
     $ sudo cp -p pdfbooklet /usr/local/bin/
 
 ## How to use pdfbooklet?
-If you have a PDF file named *mypdf.pdf* and want to convert it to a booklet, run **pdfbooklet** as follows:
+If you have a PDF file named *input.pdf* and want to convert it to a booklet, run **pdfbooklet** as follows:
 
     $ pdfbooklet input.pdf
 
